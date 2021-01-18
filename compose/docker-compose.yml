@@ -9,6 +9,9 @@ services:
     env_file:
       - ../dockerfile/docker.env
     volumes:
+      # - type: bind
+      #   source: ../cookies
+      #   target: /app/cookies
       - type: bind
         source: ../logs
         target: /app/logs

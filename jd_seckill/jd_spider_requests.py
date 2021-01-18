@@ -31,10 +31,12 @@ from .util import (
 
 from datetime import datetime, timedelta
 
+
 class SpiderSession:
     """
     Session相关操作
     """
+
     def __init__(self):
         self.cookies_dir_path = "cookies/"
         self.user_agent = global_config.getRaw('config', 'default_user_agent')
@@ -98,7 +100,8 @@ class SpiderSession:
         :param cookie_file_name: 存放Cookie的文件名称
         :return:
         """
-        cookies_file = '{}{}.cookies'.format(self.cookies_dir_path, cookie_file_name)
+        cookies_file = '{}{}.cookies'.format(
+            self.cookies_dir_path, cookie_file_name)
         directory = os.path.dirname(cookies_file)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -110,6 +113,7 @@ class QrLogin:
     """
     扫码登录
     """
+
     def __init__(self, spider_session: SpiderSession):
         """
         初始化扫码登录
@@ -145,7 +149,8 @@ class QrLogin:
             'rid': str(int(time.time() * 1000)),
         }
         try:
-            resp = self.session.get(url=url, params=payload, allow_redirects=False)
+            resp = self.session.get(
+                url=url, params=payload, allow_redirects=False)
             if resp.status_code == requests.codes.OK:
                 return True
         except Exception as e:
@@ -185,9 +190,10 @@ class QrLogin:
         save_image(resp, self.qrcode_img_file)
         logger.info('二维码获取成功，请打开京东APP扫描')
 
-        open_image(add_bg_for_qr(self.qrcode_img_file))
         if global_config.getRaw('messenger', 'email_enable') == 'true':
-            email.send('二维码获取成功，请打开京东APP扫描', "<img src='cid:qr_code.png'>", [email.mail_user], 'qr_code.png')
+            email.send('二维码获取成功，请打开京东APP扫描', "<img src='cid:qr_code.png'>", [
+                       email.mail_user], 'qr_code.png')
+        os.system("qrcode")
         return True
 
     def _get_qrcode_ticket(self):
@@ -214,7 +220,9 @@ class QrLogin:
 
         resp_json = parse_json(resp.text)
         if resp_json['code'] != 200:
-            logger.info('Code: %s, Message: %s', resp_json['code'], resp_json['msg'])
+            if resp_json['code'] != 201:
+                logger.info('Code: %s, Message: %s',
+                            resp_json['code'], resp_json['msg'])
             return None
         else:
             logger.info('已完成手机客户端确认')
@@ -256,12 +264,13 @@ class QrLogin:
 
         # get QR code ticket
         ticket = None
-        retry_times = 85
+        retry_times = 34
+        logger.info("等待扫码。。。")
         for _ in range(retry_times):
             ticket = self._get_qrcode_ticket()
             if ticket:
                 break
-            time.sleep(2)
+            time.sleep(5)
         else:
             raise SKException('二维码过期，请重新获取扫描')
 
@@ -316,6 +325,7 @@ class JdTdudfp:
                 # 如果未获取到用户昵称，说明可能登陆失败，放弃获取 _JdTdudfp
                 return jd_tdudfp
 
+            # 进入品类
             await page.waitFor(".cate_menu_lk")
             # .cate_menu_lk是一个a标签，理论上可以直接触发click事件
             # 点击事件会打开一个新的tab页，但是browser.pages()无法获取新打开的tab页，导致无法引用新打开的page对象
@@ -325,19 +335,29 @@ class JdTdudfp:
             await page.goto(a_href)
             await page.waitFor(".goods_item_link")
             logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
-            a_href = await page.querySelectorAllEval(".goods_item_link", "(elements) => elements[{}].href".format(str(random.randint(1,20))))
-            await page.goto(a_href)
-            await page.waitFor("#InitCartUrl")
-            logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
-            a_href = await page.querySelectorAllEval("#InitCartUrl", "(elements) => elements[0].href")
-            await page.goto(a_href)
+
+            # 挑选一个商品
+            goodsCount = await page.querySelectorAllEval(".goods_item_link", "(elements) => elements.length")
+            logger.info("goods count is %s" % goodsCount)
+            while goodsCount > 0:
+                goodsCount = goodsCount - 1
+                try:
+                    a_href = await page.querySelectorAllEval(".goods_item_link", "(elements) => elements[{}].href".format(str(random.randint(1, 20))))
+                    logger.info("ready to go to %s" % a_href)
+                    await page.goto(a_href)
+                    await page.waitFor("#InitCartUrl", {timeout: 5000})
+                    logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
+                    break
+                except Exception as e:
+                    pass
+
             await page.waitFor(".btn-addtocart")
-            logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
             a_href = await page.querySelectorAllEval(".btn-addtocart", "(elements) => elements[0].href")
             await page.goto(a_href)
+            logger.info("ready to go to %s" % a_href)
             await page.waitFor(".common-submit-btn")
             logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
-            
+
             await page.click(".common-submit-btn")
             await page.waitFor("#sumPayPriceId")
             logger.info("page_title：【%s】, page_url：【%s】" % (await page.title(), page.url))
@@ -352,7 +372,7 @@ class JdTdudfp:
 
             await page.close()
         except Exception as e:
-            logger.info("自动获取JdTdudfp发生异常，将从配置文件读取！")
+            logger.info("自动获取JdTdudfp发生异常，将从配置文件读取！%s" % e)
         return jd_tdudfp
 
 
@@ -466,9 +486,10 @@ class JdSeckill(object):
             来判断抢购的任务是否可以继续运行
         """
         buy_time = self.timers.buytime_get()
-        continue_time = int(global_config.getRaw('config','continue_time'))
+        continue_time = int(global_config.getRaw('config', 'continue_time'))
         stop_time = datetime.strptime(
-            (buy_time + timedelta(minutes=continue_time)).strftime("%Y-%m-%d %H:%M:%S.%f"),
+            (buy_time + timedelta(minutes=continue_time)
+             ).strftime("%Y-%m-%d %H:%M:%S.%f"),
             "%Y-%m-%d %H:%M:%S.%f"
         )
         current_time = datetime.now()
@@ -492,7 +513,7 @@ class JdSeckill(object):
         resp = self.session.get(url=url, params=payload, headers=headers)
         resp_json = parse_json(resp.text)
         reserve_url = resp_json.get('url')
-        
+
         while True:
             try:
                 self.session.get(url='https:' + reserve_url)
@@ -522,7 +543,8 @@ class JdSeckill(object):
         while not resp.text.startswith("jQuery"):
             try_count = try_count - 1
             if try_count > 0:
-                resp = self.session.get(url=url, params=payload, headers=headers)
+                resp = self.session.get(
+                    url=url, params=payload, headers=headers)
             else:
                 break
             wait_some_time()
@@ -532,7 +554,8 @@ class JdSeckill(object):
 
     def get_sku_title(self):
         """获取商品名称"""
-        url = 'https://item.jd.com/{}.html'.format(global_config.getRaw('config', 'sku_id'))
+        url = 'https://item.jd.com/{}.html'.format(
+            global_config.getRaw('config', 'sku_id'))
         resp = self.session.get(url).content
         x_data = etree.HTML(resp)
         sku_title = x_data.xpath('/html/head/title/text()')
@@ -569,7 +592,7 @@ class JdSeckill(object):
                 logger.info("抢购链接获取成功: %s", seckill_url)
                 return seckill_url
             else:
-                logger.info("抢购链接获取失败，稍后自动重试")
+                # logger.info("抢购链接获取失败，稍后自动重试")
                 wait_some_time()
 
     def request_seckill_url(self):
@@ -604,7 +627,8 @@ class JdSeckill(object):
             'Host': 'marathon.jd.com',
             'Referer': 'https://item.jd.com/{}.html'.format(self.sku_id),
         }
-        self.session.get(url=url, params=payload, headers=headers, allow_redirects=False)
+        self.session.get(url=url, params=payload,
+                         headers=headers, allow_redirects=False)
 
     def _get_seckill_init_info(self):
         """获取秒杀初始化信息（包括：地址，发票，token）
@@ -689,7 +713,8 @@ class JdSeckill(object):
             'skuId': self.sku_id,
         }
         try:
-            self.seckill_order_data[self.sku_id] = self._get_seckill_order_data()
+            self.seckill_order_data[self.sku_id] = self._get_seckill_order_data(
+            )
         except Exception as e:
             logger.info('抢购失败，无法获取生成订单的基本信息，接口返回:【{}】'.format(str(e)))
             return False
@@ -724,9 +749,11 @@ class JdSeckill(object):
             order_id = resp_json.get('orderId')
             total_money = resp_json.get('totalMoney')
             pay_url = 'https:' + resp_json.get('pcUrl')
-            logger.info('抢购成功，订单号:{}, 总价:{}, 电脑端付款链接:{}'.format(order_id, total_money, pay_url))
+            logger.info('抢购成功，订单号:{}, 总价:{}, 电脑端付款链接:{}'.format(
+                order_id, total_money, pay_url))
             if global_config.getRaw('messenger', 'server_chan_enable') == 'true':
-                success_message = "抢购成功，订单号:{}, 总价:{}, 电脑端付款链接:{}".format(order_id, total_money, pay_url)
+                success_message = "抢购成功，订单号:{}, 总价:{}, 电脑端付款链接:{}".format(
+                    order_id, total_money, pay_url)
                 send_wechat(success_message)
                 self.running_flag = False
             return True

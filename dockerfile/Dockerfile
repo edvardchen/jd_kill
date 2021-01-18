@@ -37,6 +37,15 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
 
+# init Chromium Browser
+RUN python -c "import os;\
+  DEFAULT_DOWNLOAD_HOST = 'https://npm.taobao.org/mirrors'; \
+  os.environ[\"PYPPETEER_DOWNLOAD_HOST\"] = DEFAULT_DOWNLOAD_HOST;\
+  import asyncio;\
+  from pyppeteer import launch;\
+  asyncio.get_event_loop()\
+  .run_until_complete(launch(args=[\"--no-sandbox\", \"--disable-setuid-sandbox\"]))"
+
 COPY jd_seckill ./jd_seckill
 COPY config.ini main.py ./
 RUN sed -i \
@@ -56,16 +65,6 @@ RUN sed -i \
   -e 's/^email_pwd.*/email_pwd=$JD_SECKILL_EMAIL_PWD/g' \
   -e '/#/d' \
   config.ini
-
-
-# init Chromium Browser
-RUN python -c "import os;\
-  DEFAULT_DOWNLOAD_HOST = 'https://npm.taobao.org/mirrors'; \
-  os.environ[\"PYPPETEER_DOWNLOAD_HOST\"] = DEFAULT_DOWNLOAD_HOST;\
-  import asyncio;\
-  from pyppeteer import launch;\
-  asyncio.get_event_loop()\
-  .run_until_complete(launch(args=[\"--no-sandbox\", \"--disable-setuid-sandbox\"]))"; 
 
 # clean apt cache.
 RUN apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
