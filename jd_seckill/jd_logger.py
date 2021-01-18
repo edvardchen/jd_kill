@@ -3,7 +3,7 @@ import logging.handlers
 '''
 日志模块
 '''
-LOG_FILENAME = 'jd_seckill.log'
+LOG_FILENAME = '/app/logs/jd_seckill.log'
 logger = logging.getLogger()
 
 
@@ -18,5 +18,6 @@ def set_logger():
         LOG_FILENAME, maxBytes=10485760, backupCount=5, encoding="utf-8")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+
 
 set_logger()

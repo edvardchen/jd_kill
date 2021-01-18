@@ -4,7 +4,11 @@ services:
     container_name: jd-seckill
     image: huanghyw/jd-seckill:latest
     build:
-      context: ../dockerfile
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: ./dockerfile/Dockerfile
     env_file:
       - ../dockerfile/docker.env
+    volumes:
+      - type: bind
+        source: ../logs
+        target: /app/logs
